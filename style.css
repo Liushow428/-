@@ -1,0 +1,149 @@
+:root {
+    --bg-primary: #050505;
+    --grid-color: rgba(255, 255, 255, 0.03);
+    --glow-color: rgba(0, 229, 255, 0.05);
+    
+    --card-bg: rgba(20, 20, 25, 0.7);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --card-shadow: rgba(0, 0, 0, 0.6);
+    
+    --accent-primary: #00e5ff;
+    --accent-secondary: #00a8ff;
+    --text-primary: #ffffff;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg-primary: #f5f7f9;
+        --grid-color: rgba(0, 0, 0, 0.02);
+        --glow-color: rgba(0, 168, 255, 0.03);
+        
+        --card-bg: rgba(255, 255, 255, 0.8);
+        --card-border: rgba(0, 0, 0, 0.08);
+        --card-shadow: rgba(0, 0, 0, 0.05);
+        
+        --accent-primary: #007bff;
+        --accent-secondary: #0056b3;
+        --text-primary: #1a1a2e;
+    }
+}
+
+.stApp {
+    background-color: var(--bg-primary);
+    background-image: 
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+    background-size: 40px 40px;
+    color: var(--text-primary);
+    overflow-x: hidden;
+}
+
+.stApp::before {
+    content: '';
+    position: fixed;
+    top: 5%;
+    left: 5%;
+    width: 50vw;
+    height: 50vw;
+    max-width: 450px;
+    max-height: 450px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    filter: blur(150px);
+    opacity: 0.1;
+    z-index: -1;
+    animation: floatOrb 15s infinite ease-in-out alternate;
+}
+
+.stApp::after {
+    content: '';
+    position: fixed;
+    bottom: 5%;
+    right: 5%;
+    width: 60vw;
+    height: 60vw;
+    max-width: 500px;
+    max-height: 500px;
+    background: var(--accent-secondary);
+    border-radius: 50%;
+    filter: blur(180px);
+    opacity: 0.08;
+    z-index: -1;
+    animation: floatOrb 18s infinite ease-in-out alternate-reverse;
+}
+
+@keyframes floatOrb {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(20px, -20px) scale(1.05); }
+}
+
+/* 保留表單與標籤頁的霧面玻璃效果 */
+.css-1d391kg, div[data-testid="stForm"], div[data-testid="stTabs"] {
+    background: var(--card-bg) !important;
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    border: 1px solid var(--card-border) !important;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px -10px var(--card-shadow);
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    padding: 1.5rem;
+}
+
+/* 將 stExpander (進階視覺設定) 獨立出來，移除霧面模糊(backdrop-filter)與陰影 */
+.stExpander {
+    background: transparent !important;
+    border: 1px solid var(--card-border) !important;
+    border-radius: 20px;
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    padding: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .css-1d391kg, .stExpander, div[data-testid="stForm"], div[data-testid="stTabs"] {
+        padding: 1rem;
+        border-radius: 16px;
+    }
+    
+    .stApp {
+        background-size: 20px 20px;
+    }
+}
+
+.stExpander:hover, div[data-testid="stForm"]:hover {
+    transform: perspective(1000px) translateZ(5px);
+    border-color: var(--accent-primary) !important;
+}
+
+div.stButton > button:first-child {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    width: 100%;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 229, 255, 0.2);
+}
+
+div.stButton > button:first-child:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 229, 255, 0.4);
+}
+
+.stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid var(--card-border) !important;
+    border-radius: 12px;
+    color: var(--text-primary) !important;
+}
+
+@media (prefers-color-scheme: light) {
+    .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+        background: rgba(255, 255, 255, 0.5) !important;
+    }
+}
+
+header[data-testid="stHeader"] {
+    background: transparent !important;
+}

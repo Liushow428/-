@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>社群內容自動化生成系統</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h2>社群貼文生成控制台</h2>
+        
+        <label for="topicInput">輸入貼文主題：</label>
+        <input type="text" id="topicInput" placeholder="例如：資工系大二必修生存指南">
+        
+        <button id="generateBtn">生成貼文與圖片 Prompt</button>
+
+        <div class="output-group">
+            <label for="postOutput">社群文案與 Hashtag：</label>
+            <textarea id="postOutput" rows="8" readonly></textarea>
+
+            <label for="promptOutput">圖片生成 Prompt (給 Midjourney)：</label>
+            <textarea id="promptOutput" rows="4" readonly></textarea>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
