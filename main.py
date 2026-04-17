@@ -10,7 +10,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
-
+import pytz
+tz = pytz.timezone('Asia/Taipei')
 st.set_page_config(page_title="智能社群營運工作站", page_icon="📱", layout="centered")
 
 def load_css(file_name):
@@ -73,7 +74,7 @@ def publish_to_api(platform, content, public_img_url):
 def check_and_publish():
     conn = sqlite3.connect('social_posts.db')
     c = conn.cursor()
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')
     c.execute("SELECT id, platform, post_content, public_img_url FROM posts WHERE status='排程中' AND schedule_time <= ?", (now,))
     rows = c.fetchall()
     
@@ -319,7 +320,7 @@ if st.session_state.generated_data:
         
         quick_mode = st.radio("快捷時間選擇", ["自訂時間", "5 分鐘後", "30 分鐘後", "1 小時後", "明天此時"], horizontal=True)
         
-        now = datetime.now()
+        now = datetime.now(tz)
         if quick_mode == "5 分鐘後":
             target_time = now + timedelta(minutes=5)
         elif quick_mode == "30 分鐘後":
