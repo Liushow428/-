@@ -11,7 +11,10 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
 import pytz
+
+# 設定台灣時區
 tz = pytz.timezone('Asia/Taipei')
+
 st.set_page_config(page_title="智能社群營運工作站", page_icon="📱", layout="centered")
 
 def load_css(file_name):
@@ -42,49 +45,74 @@ def publish_to_api(platform, content, public_img_url):
             token = st.secrets.get("IG_ACCESS_TOKEN", "")
             ig_user_id = st.secrets.get("IG_USER_ID", "")
             if not token or not ig_user_id: 
-                return False
+                return False, "缺少 API 金鑰"
             
             container_url = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
             container_payload = {"image_url": public_img_url, "caption": content, "access_token": token}
             res = requests.post(container_url, data=container_payload).json()
+            
             if "id" in res:
                 creation_id = res["id"]
+                # 等待 8 秒讓 Meta 伺服器下載圖片
+                time.sleep(8)
                 publish_url = f"https://graph.facebook.com/v19.0/{ig_user_id}/media_publish"
-                requests.post(publish_url, data={"creation_id": creation_id, "access_token": token})
-                return True
+                pub_res = requests.post(publish_url, data={"creation_id": creation_id, "access_token": token}).json()
+                
+                if "id" in pub_res:
+                    return True, "發布成功"
+                else:
+                    err_msg = pub_res.get("error", {}).get("message", "未知的發布錯誤")
+                    return False, f"Meta拒絕發布: {err_msg}"
+            else:
+                err_msg = res.get("error", {}).get("message", "建立草稿失敗")
+                return False, f"容器建立失敗: {err_msg}"
                 
         elif platform == "Threads":
             token = st.secrets.get("THREADS_ACCESS_TOKEN", "")
             threads_user_id = st.secrets.get("THREADS_USER_ID", "")
             if not token or not threads_user_id: 
-                return False
+                return False, "缺少 API 金鑰"
             
             container_url = f"https://graph.threads.net/v1.0/{threads_user_id}/threads"
             container_payload = {"media_type": "IMAGE", "image_url": public_img_url, "text": content, "access_token": token}
             res = requests.post(container_url, data=container_payload).json()
+            
             if "id" in res:
                 creation_id = res["id"]
+                time.sleep(8)
                 publish_url = f"https://graph.threads.net/v1.0/{threads_user_id}/threads_publish"
-                requests.post(publish_url, data={"creation_id": creation_id, "access_token": token})
-                return True
-        return False
-    except Exception:
-        return False
+                pub_res = requests.post(publish_url, data={"creation_id": creation_id, "access_token": token}).json()
+                
+                if "id" in pub_res:
+                    return True, "發布成功"
+                else:
+                    err_msg = pub_res.get("error", {}).get("message", "未知的發布錯誤")
+                    return False, f"Meta拒絕發布: {err_msg}"
+            else:
+                err_msg = res.get("error", {}).get("message", "建立草稿失敗")
+                return False, f"容器建立失敗: {err_msg}"
+                
+        return False, "未支援的平台"
+    except Exception as e:
+        return False, f"系統錯誤: {str(e)}"
 
 def check_and_publish():
     conn = sqlite3.connect('social_posts.db')
     c = conn.cursor()
+    # 確保排程器讀取的是台灣時區的時間
     now = datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')
     c.execute("SELECT id, platform, post_content, public_img_url FROM posts WHERE status='排程中' AND schedule_time <= ?", (now,))
     rows = c.fetchall()
     
     for row in rows:
         post_id, platform, content, public_img_url = row
-        success = publish_to_api(platform, content, public_img_url)
+        success, msg = publish_to_api(platform, content, public_img_url)
+        
         if success:
             c.execute("UPDATE posts SET status='已發布' WHERE id=?", (post_id,))
         else:
-            c.execute("UPDATE posts SET status='發布失敗(API或權限錯誤)' WHERE id=?", (post_id,))
+            short_msg = msg[:35] + "..." if len(msg) > 35 else msg
+            c.execute("UPDATE posts SET status=? WHERE id=?", (f"失敗: {short_msg}", post_id))
             
     conn.commit()
     conn.close()
@@ -297,7 +325,6 @@ if st.session_state.generated_data:
                 headers = {'User-Agent': 'Mozilla/5.0'}
                 
                 try:
-                    # 🌟 將 timeout 從 30 秒放寬到 60 秒
                     img_response = requests.get(image_api_url, headers=headers, timeout=60)
                     
                     if img_response.status_code == 200:
@@ -309,7 +336,6 @@ if st.session_state.generated_data:
                     else:
                         st.error(f"圖片伺服器忙碌，請稍後再試！ (狀態碼: {img_response.status_code})")
                 
-                # 🌟 加入專屬的 Timeout 錯誤捕捉，讓網頁不會崩潰
                 except requests.exceptions.Timeout:
                     st.error("⏳ 圖片伺服器算圖時間過長（超過 60 秒），請稍微簡化 Prompt 或等一下再試！")
                 except Exception as e:
@@ -361,37 +387,6 @@ if st.session_state.generated_data:
             st.rerun()
 
 st.divider()
-st.subheader("🛠️ 系統除錯區 (開發者專用)")
-st.info("此按鈕會無視時間設定，直接把所有「排程中」的貼文抓出來強制發布，用來測試雲端 API 是否暢通。")
-
-if st.button("🚨 強制觸發所有排程 (無視時間)"):
-    with st.spinner("強制呼叫 Meta API 中，請稍候..."):
-        conn = sqlite3.connect('social_posts.db')
-        c = conn.cursor()
-        # 無視時間，直接抓出所有排程中的貼文
-        c.execute("SELECT id, platform, post_content, public_img_url FROM posts WHERE status='排程中'")
-        rows = c.fetchall()
-        
-        if not rows:
-            st.warning("目前沒有「排程中」的貼文可以測試喔！請先去上面生成並提交一篇。")
-        else:
-            for row in rows:
-                post_id, platform, content, public_img_url = row
-                # 直接在主程式呼叫，確保能讀到 st.secrets
-                success, msg = publish_to_api(platform, content, public_img_url)
-                
-                if success:
-                    c.execute("UPDATE posts SET status='已發布' WHERE id=?", (post_id,))
-                    st.success(f"ID {post_id} 強制發布成功！")
-                else:
-                    short_msg = msg[:40] + "..." if len(msg) > 40 else msg
-                    c.execute("UPDATE posts SET status=? WHERE id=?", (f"失敗: {short_msg}", post_id))
-                    st.error(f"ID {post_id} 發布失敗！原因：{msg}")
-                    
-            conn.commit()
-        conn.close()
-        time.sleep(2) # 停頓一下讓你看清楚綠色/紅色提示
-        st.rerun()
 st.subheader("排程隊列監控 (SQLite)")
 
 conn = sqlite3.connect('social_posts.db')
