@@ -361,6 +361,37 @@ if st.session_state.generated_data:
             st.rerun()
 
 st.divider()
+st.subheader("🛠️ 系統除錯區 (開發者專用)")
+st.info("此按鈕會無視時間設定，直接把所有「排程中」的貼文抓出來強制發布，用來測試雲端 API 是否暢通。")
+
+if st.button("🚨 強制觸發所有排程 (無視時間)"):
+    with st.spinner("強制呼叫 Meta API 中，請稍候..."):
+        conn = sqlite3.connect('social_posts.db')
+        c = conn.cursor()
+        # 無視時間，直接抓出所有排程中的貼文
+        c.execute("SELECT id, platform, post_content, public_img_url FROM posts WHERE status='排程中'")
+        rows = c.fetchall()
+        
+        if not rows:
+            st.warning("目前沒有「排程中」的貼文可以測試喔！請先去上面生成並提交一篇。")
+        else:
+            for row in rows:
+                post_id, platform, content, public_img_url = row
+                # 直接在主程式呼叫，確保能讀到 st.secrets
+                success, msg = publish_to_api(platform, content, public_img_url)
+                
+                if success:
+                    c.execute("UPDATE posts SET status='已發布' WHERE id=?", (post_id,))
+                    st.success(f"ID {post_id} 強制發布成功！")
+                else:
+                    short_msg = msg[:40] + "..." if len(msg) > 40 else msg
+                    c.execute("UPDATE posts SET status=? WHERE id=?", (f"失敗: {short_msg}", post_id))
+                    st.error(f"ID {post_id} 發布失敗！原因：{msg}")
+                    
+            conn.commit()
+        conn.close()
+        time.sleep(2) # 停頓一下讓你看清楚綠色/紅色提示
+        st.rerun()
 st.subheader("排程隊列監控 (SQLite)")
 
 conn = sqlite3.connect('social_posts.db')
